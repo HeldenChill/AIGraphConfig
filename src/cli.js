@@ -33,6 +33,9 @@ const server = createServer({
   cacheFile: path.join(root, 'cache', 'parsed.json'),
   claudeRoot: path.join(os.homedir(), '.claude', 'projects'),
   codexRoot: path.join(os.homedir(), '.codex', 'sessions'),
+  claudeHome: path.join(os.homedir(), '.claude'),
+  codexHome: path.join(os.homedir(), '.codex'),
+  sharedDir: process.env.SHARED_CONFIG_DIR || 'G:\\Unity\\claude-unity-shared',
   prices: JSON.parse(fs.readFileSync(pricesFile, 'utf8')),
   pricesFile,
 });

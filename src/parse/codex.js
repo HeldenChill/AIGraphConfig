@@ -1,4 +1,5 @@
 import { readJsonl, newSession, newPrompt, finishSession } from '../model.js';
+import { codexTouches } from './touches.js';
 
 export const NO_TEXT = '(no text)';
 
@@ -63,6 +64,7 @@ export function parseCodexRollout(text, opts) {
   }
 
   for (const pr of s.prompts) pr.text ??= NO_TEXT;
+  s.touches = codexTouches(rows);
   s.title = s.prompts.find(pr => pr.text !== NO_TEXT)?.text.slice(0, 60) ?? null;
   return finishSession(s);
 }

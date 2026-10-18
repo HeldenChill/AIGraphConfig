@@ -4,6 +4,10 @@ import path from 'node:path';
 import { scanProject } from './scan.js';
 import { priceSession } from './prices.js';
 import { loadSettings, saveSettings } from './settings.js';
+import { buildGraph } from './graph/build.js';
+import { applyUsage } from './graph/usage.js';
+import { makeResolver } from './graph/resolve.js';
+import { namedIn } from './graph/classify.js';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -34,6 +38,9 @@ function readBody(req) {
   });
 }
 
+const day = s => (s.start || '').slice(0, 10);
+const inRange = (s, from, to) => (!from || day(s) >= from) && (!to || day(s) <= to);
+
 function summary(s) {
   return {
     id: s.id, client: s.client, title: s.title, model: s.model, start: s.start,
@@ -41,7 +48,7 @@ function summary(s) {
   };
 }
 
-// ctx = { root, settingsFile, cacheFile, claudeRoot, codexRoot, prices, pricesFile }
+// ctx = { root, settingsFile, cacheFile, claudeRoot, codexRoot, claudeHome, codexHome, sharedDir, prices, pricesFile }
 export function createServer(ctx) {
   const publicDir = path.join(ctx.root, 'public');
   let last = { project: null, sessions: [], scannedAt: null };
@@ -53,17 +60,20 @@ export function createServer(ctx) {
     return last;
   };
 
+  const graphFor = project => buildGraph({
+    project, claudeHome: ctx.claudeHome, codexHome: ctx.codexHome, sharedDir: ctx.sharedDir,
+    showDocs: loadSettings(ctx.settingsFile).showDocs,
+  });
+
   async function handle(req, res, url) {
     if (url.pathname === '/api/sessions' && req.method === 'GET') {
       const { project, sessions, scannedAt } = scan();
       const client = url.searchParams.get('client');
       const from = url.searchParams.get('from');
       const to = url.searchParams.get('to');
-      const day = s => (s.start || '').slice(0, 10);
       const picked = sessions
         .filter(s => !client || s.client === client)
-        .filter(s => !from || day(s) >= from)
-        .filter(s => !to || day(s) <= to)
+        .filter(s => inRange(s, from, to))
         .map(s => priceSession(s, ctx.prices));
       const unpriced = [...new Set(picked.flatMap(s => s.unpriced))].sort();
       return send(res, 200, { project, scannedAt, unpriced, sessions: picked.map(summary) });
@@ -74,6 +84,39 @@ export function createServer(ctx) {
       // Rescan (cheap: parsed cache is in memory) so new sessions and a switched project are seen.
       const s = scan().sessions.find(x => x.client === m[1] && x.id === decodeURIComponent(m[2]));
       return s ? send(res, 200, priceSession(s, ctx.prices)) : send(res, 404, { error: 'not found' });
+    }
+
+    if (url.pathname === '/api/graph' && req.method === 'GET') {
+      const { project, sessions } = scan();
+      if (!project) return send(res, 200, { project: null });
+      const graph = graphFor(project);
+      const pick = url.searchParams.get('session');
+      const inDates = sessions.filter(s => inRange(s, url.searchParams.get('from'), url.searchParams.get('to')));
+      const { usage, logEdges, overlay } = applyUsage(graph, inDates, pick);
+      // A picked session outside the date range still lights up the map.
+      const pickedOverlay = overlay ?? (pick ? applyUsage(graph, sessions.filter(s => `${s.client}/${s.id}` === pick), pick).overlay : null);
+      const { hooks, ...rest } = graph;
+      return send(res, 200, {
+        ...rest, edges: [...graph.edges, ...logEdges], usage, overlay: pickedOverlay,
+        sessions: inDates.map(s => ({ id: s.id, client: s.client, title: s.title, start: s.start })),
+      });
+    }
+
+    if (url.pathname === '/api/file' && req.method === 'GET') {
+      const { project } = scan();
+      const graph = project ? graphFor(project) : null;
+      const id = url.searchParams.get('id');
+      // Only files that are nodes of the current graph are ever served.
+      const node = graph?.nodes.find(n => n.id === id && n.path);
+      if (!node) return send(res, 404, { error: 'not a graph file' });
+      const text = fs.readFileSync(node.path, 'utf8');
+      const resolve = makeResolver(graph.nodes);
+      const refs = {};
+      for (const tok of namedIn(text)) {
+        const to = resolve(tok, path.dirname(node.path));
+        if (to && to !== node.id) refs[tok] = to;
+      }
+      return send(res, 200, { id: node.id, path: node.path, text, refs });
     }
 
     if (url.pathname === '/api/settings' && req.method === 'GET') {

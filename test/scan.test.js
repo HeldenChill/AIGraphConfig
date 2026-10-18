@@ -42,17 +42,17 @@ test('unchanged file served from cache, changed file reparsed', () => {
 });
 
 test('sanitizeSettings drops bad theme and non-string paths', () => {
-  assert.deepEqual(sanitizeSettings({ projects: ['a', 3, 'a', ' '], theme: 'Z' }), { projects: ['a'], active: 'a', theme: 'A' });
-  assert.deepEqual(sanitizeSettings(null ?? {}), { projects: [], active: null, theme: 'A' });
+  assert.deepEqual(sanitizeSettings({ projects: ['a', 3, 'a', ' '], theme: 'Z' }), { projects: ['a'], active: 'a', theme: 'A', layout: 'layers', showDocs: false });
+  assert.deepEqual(sanitizeSettings(null ?? {}), { projects: [], active: null, theme: 'A', layout: 'layers', showDocs: false });
 });
 
 test('settings round trip; corrupt file gives defaults', () => {
   const f = fakeLogs();
   const file = path.join(f.dir, 'settings.local.json');
   saveSettings(file, { projects: ['x', 'y'], active: 'y', theme: 'C' });
-  assert.deepEqual(loadSettings(file), { projects: ['x', 'y'], active: 'y', theme: 'C' });
+  assert.deepEqual(loadSettings(file), { projects: ['x', 'y'], active: 'y', theme: 'C', layout: 'layers', showDocs: false });
   fs.writeFileSync(file, '{oops');
-  assert.deepEqual(loadSettings(file), { projects: [], active: null, theme: 'A' });
+  assert.deepEqual(loadSettings(file), { projects: [], active: null, theme: 'A', layout: 'layers', showDocs: false });
 });
 
 test('nothing changed: cache file is not rewritten', () => {

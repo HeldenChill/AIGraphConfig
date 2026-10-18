@@ -37,7 +37,7 @@ export function newSession(fields) {
   return {
     id: null, client: null, project: null, file: null, title: null, model: null,
     start: null, end: null, prompts: [], setupPieces: null, firstCallCacheWrite: null,
-    rateLimitPercent: null, badLines: 0, totals: null, cost: null, unpriced: [],
+    rateLimitPercent: null, badLines: 0, totals: null, cost: null, unpriced: [], touches: [],
     ...fields,
   };
 }

@@ -4,7 +4,7 @@ import { parseClaudeSession } from './parse/claude.js';
 import { parseCodexRollout } from './parse/codex.js';
 
 // Bump when a parser changes what it produces; old cache entries are then dropped.
-export const PARSER_VERSION = 2;
+export const PARSER_VERSION = 3;
 
 // Claude Code turns every non-alphanumeric character of the project path into a dash.
 export function claudeSlug(projectPath) {

@@ -1,15 +1,16 @@
 # Memory: AIConfigGraph Project Context
 
 **ID:** `mem-project-context`
-**Status:** 2026-10-18 — **v1 token report built** (Gemini, from plan) and verified. `node --test` 48/48 pass. Hand-sum match on PvM `1045f30c`: 78 calls, fresh 156, cache write 210,872, cache read 13,489,241, output 57,786. Not committed yet. Run: `node src/cli.js --project <path>`.
+**Status:** 2026-10-19 — **v1 token report built, verified and committed** (`node --test` 48/48; hand-sum match on PvM `1045f30c`: 78 calls, fresh 156, cache write 210,872, cache read 13,489,241, output 57,786). **Phase 2 config graph: spec approved, verified plan written, not executed** — see [`mem-config-graph.md`](mem-config-graph.md). Run: `node src/cli.js --project <path>`.
 **Spec:** [`.cursor/plans/design/2026-10-18-ai-config-graph.md`](../plans/design/2026-10-18-ai-config-graph.md)
 **Plan:** [`.cursor/plans/implement/2026-10-18-ai-config-graph-v1.md`](../plans/implement/2026-10-18-ai-config-graph-v1.md) — its "Findings that refine the spec" table corrects where setup pieces live in the log.
 
 ## Resume here
 
 1. Owner confirms the four themes in a browser (`/theme-check.html`): plan Task 7 Step 11 not yet confirmed.
-2. Owner review of v1 and commit on owner's go-ahead (`docs: record v1 verification`).
-3. Phase 2 config graph: `superpowers:brainstorming` → spec, then a Gemini-ready plan (complete verified code embedded, as v1).
+2. Phase 2 config graph: owner reviews the plan, Gemini executes, Claude reviews — [`mem-config-graph.md`](mem-config-graph.md) "Next".
+3. Uncommitted from the 2026-10-18 session: phase 2 spec and plan, `.claude/package.json`, memory edits. Commit on owner's go-ahead.
+4. Master: `7addec6` (`.claude/package.json` Universal) is merged into `main` and pushed by the owner; run `sync.ps1 pull` in each project. Branch `docs/hook-troubleshooting` (`08ec8ca`, hook troubleshooting in `mem-shared-ai-config.md`) is local, not pushed.
 
 ## v1 verification (2026-10-18)
 
@@ -25,7 +26,7 @@ Local, read-only, single-user web tool (owner only) to see an AI setup and where
 | Phase | Content |
 |---|---|
 | v1 | Token report: sessions → prompts → API calls; fresh input, cache write 5m/1h, cache read, output, thinking; API-equivalent dollar cost; setup-piece split (base prompt, CLAUDE.md, each rule, skill list, MCP, tools); hook injection cost; 4 themes |
-| 2 | Config graph (files as nodes, links and `mem-` refs as edges, grouped by hub, which client receives each file) |
+| 2 | Config graph (files as nodes, links and `mem-` refs as edges, grouped by hub, which client receives each file) — [`mem-config-graph.md`](mem-config-graph.md) |
 | 3+ | Compare tagged sessions + quality signal; Cursor/Gemini; editing project-owned config; Notion embed; all master projects |
 
 ## Owner decisions (2026-10-18)
@@ -48,6 +49,7 @@ Node built-ins only, no dependencies, plain HTML/CSS/JS, hand-drawn SVG charts; 
 |---|---|---|
 | Claude Code | `~/.claude/projects/<slug>/<session>.jsonl` (+ `<session>/subagents/*.jsonl` when present) | per call `message.usage` + `requestId`; typed prompts marked `origin.kind: "human"`; `attachment` `hook_additional_context` with hook name + text; `attachment` `instructions` (CLAUDE.md, rules, MEMORY.md as `files`), `skill_listing`, `mcp_instructions_delta`; `api-request-shape` with `shape.system` + `shape.tools`; `ai-title` |
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | `token_usage_record` per API call (`response_id`, `turn_id`, `usage`: input incl. cached, cached, cache write, output, reasoning); `event_msg` `token_count` for `rate_limits` used percent |
+| Claude Code (phase 2 additions) | same | `attachment` `hook_success` with `command`, `hookEvent`, `toolUseID`; `tool_use` `Skill` `input.skill`, `Read`/`Edit`/`Write` `input.file_path`, `Bash` `input.command` — details in `mem-config-graph.md` |
 | Cursor | `AppData/Roaming/Cursor/User/workspaceStorage` (SQLite) | not inspected |
 | Gemini | `~/.gemini/` | not inspected |
 
@@ -60,6 +62,9 @@ Sample numbers (the brainstorm session `1045f30c`, PvM, at 36 calls; the session
 - Log facts found while writing the v1 plan (2026-10-18): typed Claude prompts carry `origin.kind: "human"`; CLAUDE.md/rules/MEMORY.md arrive in one `attachment` `instructions` with `files[{path,type,content}]`, not in `api-request-shape` `shape.system`; Codex has a per-call `token_usage_record` (`response_id`, `turn_id`, `usage`) in every rollout; logs hold both `claude-opus-5` and `claude-opus-5-5`, so price lookup must not prefix-match. Full table: the plan's "Findings that refine the spec".
 - The plan embeds complete, pre-verified code (41 tests pass; parser matched a hand sum on `1045f30c`) so a non-Claude executor (Gemini) can copy it verbatim.
 - taste-skill v2 (`design-taste-frontend`) says "Not for dashboards or app screens"; do not run its `draw.mjs` landing-page workflow for tool screens. Use its bans + minimalist/brutalist skills + `vendor/awesome-design-md/design-md/linear.app`.
+- Root `package.json` has `"type": "module"` (v1), which broke the shared CommonJS hooks (`require is not defined`). `.claude/package.json` `{ "type": "commonjs" }` scopes them back (2026-10-18). Keep it. Master ships the same file as Universal (`7addec6`, on `main`); the next `sync.ps1 pull` replaces the local copy. Survey 2026-10-18: all 8 master-config projects' hooks pass; only this one has a `"type": "module"` root, so the master file is prevention, not a repair.
+- **Claude Code Bash tool collapses `\\` in heredocs and inline `node -e` scripts** (a regex `/\.md$/` became `/.md$/`, `'G:\\Unity'` became `G:\Unity`). Write any script that contains backslashes with the Write tool and run the file.
+- **`git archive` honours `core.autocrlf`** (CRLF export, LF working tree; multi-line Finds match 0 times). Dry-run plans on `git -c core.autocrlf=false archive HEAD ... | tar -x -C <relative dir>`, never on a copy of the working tree once an executor may be running.
 - The shared memory hook reads `.cursor/memory/mem-arch-assemblies-canonical.md` (fixed path) — that is why this workspace's index has a Unity-sounding name.
 - `memory-first-workflow.md` and `memory-write-rules.md` were copied from PvM because the shared hook points at them and the master does not deliver them. Candidate to promote to Universal in `claude-unity-shared`.
 

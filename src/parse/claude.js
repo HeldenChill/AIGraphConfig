@@ -1,5 +1,6 @@
 import { FIELDS, readJsonl, newSession, newPrompt, finishSession, estTokens } from '../model.js';
 import { splitSetupPieces } from '../pieces.js';
+import { claudeTouches } from './touches.js';
 
 export const BEFORE_FIRST_PROMPT = '(before first prompt)';
 const TARGET_KEYS = ['file_path', 'path', 'pattern', 'command', 'url'];
@@ -110,7 +111,9 @@ export function parseClaudeSession(text, opts) {
 
   if (preHooks.length && cur === null) startPrompt(BEFORE_FIRST_PROMPT, s.start);
 
-  for (const extra of opts.extraTexts || []) addSubagentCalls(s, extra, seen);
+  const extraRows = (opts.extraTexts || []).map(t => readJsonl(t).rows);
+  for (const extra of extraRows) addSubagentCalls(s, extra, seen);
+  s.touches = claudeTouches([rows, ...extraRows]);
 
   const shape = rows.find(l => l.type === 'api-request-shape')?.shape;
   if (shape) {
@@ -132,8 +135,8 @@ function keepLargest(call, next) {
 }
 
 // Subagent transcript files: unseen calls go to the last prompt that started before them.
-function addSubagentCalls(s, text, seen) {
-  for (const l of readJsonl(text).rows) {
+function addSubagentCalls(s, rows, seen) {
+  for (const l of rows) {
     if (!isCallLine(l)) continue;
     if (seen.has(l.requestId)) { keepLargest(seen.get(l.requestId), toCall(l)); continue; }
     const call = { ...toCall(l), subagent: true };
