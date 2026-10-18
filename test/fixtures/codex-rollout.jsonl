@@ -1,0 +1,16 @@
+{"timestamp":"2026-10-18T11:00:00Z","type":"session_meta","payload":{"id":"cx1","cwd":"G:\\Proj"}}
+{"timestamp":"2026-10-18T11:00:00Z","type":"turn_context","payload":{"turn_id":"u1","model":"gpt-test"}}
+{"timestamp":"2026-10-18T11:00:01Z","type":"event_msg","payload":{"type":"task_started","turn_id":"u1"}}
+{"timestamp":"2026-10-18T11:00:01Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions"},{"type":"input_text","text":"<environment_context>x</environment_context>"}]}}
+{"timestamp":"2026-10-18T11:00:01Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"hello"}]}}
+{"timestamp":"2026-10-18T11:00:02Z","type":"token_usage_record","payload":{"turn_id":"u1","response_id":"resp1","usage":{"input_tokens":100,"cached_input_tokens":60,"cache_write_input_tokens":0,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":110}}}
+{"timestamp":"2026-10-18T11:00:02Z","type":"token_usage_record","payload":{"turn_id":"u1","response_id":"resp1","usage":{"input_tokens":100,"cached_input_tokens":60,"cache_write_input_tokens":0,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":110}}}
+{"timestamp":"2026-10-18T11:00:02Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":10}}}}
+{"timestamp":"2026-10-18T11:00:03Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"u1"}}
+{"timestamp":"2026-10-18T11:01:00Z","type":"turn_context","payload":{"turn_id":"u2","model":"gpt-test-2"}}
+{"timestamp":"2026-10-18T11:01:00Z","type":"event_msg","payload":{"type":"task_started","turn_id":"u2"}}
+{"timestamp":"2026-10-18T11:01:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"again"}]}}
+{"timestamp":"2026-10-18T11:01:01Z","type":"token_usage_record","payload":{"turn_id":"u2","response_id":"resp2","usage":{"input_tokens":150,"cached_input_tokens":140,"cache_write_input_tokens":0,"output_tokens":20,"reasoning_output_tokens":0,"total_tokens":170}}}
+{"timestamp":"2026-10-18T11:01:02Z","type":"token_usage_record","payload":{"turn_id":"u2","response_id":"resp3","usage":{"input_tokens":200,"cached_input_tokens":150,"cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":1,"total_tokens":205}}}
+{"timestamp":"2026-10-18T11:01:02Z","type":"event_msg","payload":{"type":"token_count","info":{},"rate_limits":{"primary":{"used_percent":12.5}}}}
+{"timestamp":"2026-10-18T11:01:03Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"u2"}}

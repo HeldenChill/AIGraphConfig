@@ -1,0 +1,19 @@
+{"type":"ai-title","aiTitle":"Fixture session","sessionId":"s1"}
+{"type":"attachment","timestamp":"2026-10-18T09:58:00Z","attachment":{"type":"hook_additional_context","hookEvent":"SessionStart","content":["x"]}}
+{"type":"assistant","requestId":"r0","timestamp":"2026-10-18T09:59:00Z","message":{"model":"claude-test-1","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":5,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":1}}}
+{"type":"user","promptId":"p1","origin":{"kind":"human"},"timestamp":"2026-10-18T10:00:00Z","message":{"role":"user","content":"first prompt"}}
+{"type":"attachment","timestamp":"2026-10-18T10:00:01Z","attachment":{"type":"hook_additional_context","hookName":"UserPromptSubmit","hookEvent":"UserPromptSubmit","content":["abcd","efgh"]}}
+{"type":"attachment","timestamp":"2026-10-18T10:00:01Z","attachment":{"type":"instructions","files":[{"path":"C:\\u\\.claude\\CLAUDE.md","type":"User","content":"GG"},{"path":"P\\.claude\\rules\\a.md","type":"Project","content":"RRR"},{"path":"C:\\u\\memory\\MEMORY.md","type":"AutoMem","content":"MMMM"}]}}
+{"type":"attachment","timestamp":"2026-10-18T10:00:01Z","attachment":{"type":"skill_listing","content":"SKILLS"}}
+{"type":"attachment","timestamp":"2026-10-18T10:00:01Z","attachment":{"type":"mcp_instructions_delta","addedNames":["m"],"addedBlocks":["MCP"]}}
+{"type":"api-request-shape","timestamp":"2026-10-18T10:00:02Z","shape":{"system":[{"type":"text","text":"BASE"}],"tools":[{"name":"Read"}]}}
+{"type":"assistant","requestId":"r1","timestamp":"2026-10-18T10:00:03Z","message":{"model":"claude-test-1","content":[{"type":"thinking","thinking":"..."}],"usage":{"input_tokens":10,"cache_creation_input_tokens":1000,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":1000},"cache_read_input_tokens":0,"output_tokens":20,"output_tokens_details":{"thinking_tokens":8}}}}
+{"type":"assistant","requestId":"r1","timestamp":"2026-10-18T10:00:03Z","message":{"model":"claude-test-1","content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"a.md"}}],"usage":{"input_tokens":10,"cache_creation_input_tokens":1000,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":1000},"cache_read_input_tokens":0,"output_tokens":20,"output_tokens_details":{"thinking_tokens":8}}}}
+{"type":"user","promptId":"p1","timestamp":"2026-10-18T10:00:04Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"0123456789012345678901234567890123456789"}]}}
+{"type":"assistant","requestId":"r2","timestamp":"2026-10-18T10:00:05Z","message":{"model":"claude-test-1","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":3,"cache_creation_input_tokens":50,"cache_read_input_tokens":1000,"output_tokens":5}}}
+{"type":"assistant","requestId":"rs","timestamp":"2026-10-18T10:00:06Z","message":{"model":"<synthetic>","content":[],"usage":{"input_tokens":0,"output_tokens":0}}}
+{"type":"user", broken
+{"type":"user","promptId":"p2","isMeta":true,"timestamp":"2026-10-18T10:04:59Z","message":{"role":"user","content":"skill text"}}
+{"type":"user","promptId":"p2","origin":{"kind":"human"},"timestamp":"2026-10-18T10:05:00Z","message":{"role":"user","content":[{"type":"text","text":"second prompt"}]}}
+{"type":"assistant","requestId":"r3","isSidechain":true,"timestamp":"2026-10-18T10:05:10Z","message":{"model":"claude-test-1","content":[],"usage":{"input_tokens":7,"cache_creation_input_tokens":0,"cache_read_input_tokens":100,"output_tokens":2}}}
+{"type":"assistant","requestId":"r4","timestamp":"2026-10-18T10:06:00Z","message":{"model":"claude-test-1","content":[],"usage":{"input_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":2000,"output_tokens":3}}}
