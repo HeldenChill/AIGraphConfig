@@ -1,0 +1,9 @@
+{
+  "_comment": "AIConfigGraph is a Node web tool, not a Unity project. Unity identity tokens are filled with n/a so Universal templates resolve without warnings.",
+  "PROJECT_NAME":    "AIConfigGraph",
+  "L5_ASSEMBLY":     "n/a (not a Unity project)",
+  "L5_PATH":         "n/a",
+  "LOCATOR_SERVICE": "n/a",
+  "INTEGRITY_CHECK": "n/a",
+  "UNITY_VERSION":   "n/a"
+}

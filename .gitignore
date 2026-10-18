@@ -1,0 +1,7 @@
+node_modules/
+.superpowers/
+.taste-skill/
+.claude/settings.local.json
+*.log
+settings.local.json
+cache/
