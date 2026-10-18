@@ -14,7 +14,7 @@
 
 This plan carries the **complete code**. It was built and run in a scratch copy of this repo before the plan was written:
 
-- `node --test` → **69 tests, 69 pass, 0 fail** (Node v24.12.0, Windows 11). v1 had 48.
+- `node --test` → **71 tests, 71 pass, 0 fail** (Node v24.12.0, Windows 11). v1 had 48.
 - On the real PetVsMonster project: the graph built in 0.7 s (0.06 s cached) with 680 nodes, 2,959 mention edges and 21 sessions of usage. Headless Chrome check: the map draws in all four themes and both layouts, clicking a node fills the panel, opening a box adds its files, Read shows the file with 352 working links, search selects `mem-bugs-ui`, and the session overlay lights up the files a session touched.
 
 Rules for the executor:
@@ -206,6 +206,7 @@ classDiagram
 ```js
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import os from 'node:os';
 import path from 'node:path';
 import { parentOf, scriptOf, namedIn, hubRows, alwaysApply, frameworkOrigin } from '../src/graph/classify.js';
 
@@ -222,6 +223,8 @@ test('classify helpers', () => {
   assert.equal(scriptOf('C:/x/claude-hook.cmd || echo {}'), path.resolve('C:/x/claude-hook.cmd'));
   assert.equal(scriptOf('"${UNKNOWN}/a.js"'), null);
   assert.equal(scriptOf('echo hi'), null);
+  assert.equal(scriptOf('node .claude/hooks/a.js', {}, 'C:/p'), path.resolve('C:/p/.claude/hooks/a.js'));
+  assert.equal(scriptOf('bash ~/hooks/a.sh', {}, 'C:/p'), path.join(os.homedir(), 'hooks', 'a.sh'));
   assert.deepEqual(namedIn('cat .cursor/memory/mem-a.md; grep -l mem-b-c x; node G:\\p\\h.js'),
     ['.cursor/memory/mem-a.md', 'mem-b-c', 'G:\\p\\h.js']);
 });
@@ -235,6 +238,7 @@ Expected: FAIL, `Cannot find module` for `src/graph/classify.js`.
 - [ ] **Step 3: Create `src/graph/classify.js`**
 
 ```js
+import os from 'node:os';
 import path from 'node:path';
 
 // Node id and path compare form: absolute, forward slashes, lower case, no trailing slash.
@@ -293,23 +297,25 @@ export function labelOf(file) {
 
 const SCRIPT = /("[^"]+\.(?:js|mjs|cjs|ps1|sh|py|cmd)"|[^\s"]+\.(?:js|mjs|cjs|ps1|sh|py|cmd))(?=\s|$)/i;
 
-// The script file a hook command runs, with ${VAR} and $VAR expanded from vars; null when none.
-export function scriptOf(command, vars = {}) {
+// The script file a hook command runs, with ${VAR} and $VAR expanded from vars, a leading ~ expanded
+// to the home folder and a relative path resolved against base (the hook's working folder); null when none.
+export function scriptOf(command, vars = {}, base = process.cwd()) {
   const m = command.match(SCRIPT);
   if (!m) return null;
   let p = m[1].replace(/^"|"$/g, '');
   p = p.replace(/\$\{(\w+)\}|\$(\w+)/g, (all, a, b) => vars[a || b] ?? all);
-  return /\$/.test(p) ? null : path.resolve(p);
+  p = p.replace(/^~(?=[\\/])/, os.homedir());
+  return /\$/.test(p) ? null : path.resolve(base, p);
 }
 
 // Hook entries of a settings.json, hooks.json or plugin.json object.
-export function hookEntries(json, vars, source) {
+export function hookEntries(json, vars, source, base) {
   const out = [];
   for (const [event, groups] of Object.entries(json?.hooks || {})) {
     if (!Array.isArray(groups)) continue;
     for (const g of groups) for (const h of g.hooks || []) {
       if (typeof h.command !== 'string') continue;
-      out.push({ event, command: h.command, statusMessage: h.statusMessage ?? null, script: scriptOf(h.command, vars), source });
+      out.push({ event, command: h.command, statusMessage: h.statusMessage ?? null, script: scriptOf(h.command, vars, base), source });
     }
   }
   return out;
@@ -742,6 +748,7 @@ export function fakeConfig() {
 ```js
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph } from '../src/graph/build.js';
 import { normPath } from '../src/graph/classify.js';
@@ -833,6 +840,20 @@ test('hook entries from project, global and plugin settings', () => {
     [['SessionStart', 'g.js'], ['SessionStart', 'run.cmd'], ['UserPromptSubmit', 'inject.js']]);
   assert.equal(g.hooks.find(h => h.nodeId.endsWith('g.js')).statusMessage, 'Loading g');
   assert.equal(g.nodes.find(n => n.id.endsWith('/run.cmd')).group, 'outside:plugin:pl');
+});
+
+test('relative and missing hook scripts, outside index path', () => {
+  const h = fakeConfig();
+  const put = (file, text) => fs.writeFileSync(path.join(h.project, file), text);
+  put('.claude/settings.json', JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [
+    { type: 'command', command: 'node .claude/hooks/inject.js' },
+    { type: 'command', command: 'node .claude/hooks/missing.js' }] }] } }));
+  fs.writeFileSync(path.join(h.dir, 'secret.md'), '# outside\n');
+  put('.claude/rules/memory-first-workflow.md', 'MEMORY_MASTER_INDEX  = ../secret.md\n');
+  const hg = buildGraph({ ...h, showDocs: false });
+  const inject = normPath(path.join(h.project, '.claude', 'hooks', 'inject.js'));
+  assert.deepEqual(hg.hooks.filter(x => x.event === 'UserPromptSubmit').map(x => x.nodeId), [inject], 'relative resolves in project; missing has no node');
+  assert.ok(!hg.nodes.some(n => n.id.endsWith('/missing.js') || n.id.endsWith('/secret.md')));
 });
 
 test('resolver: git bash, relative, suffix and stem forms', () => {
@@ -944,12 +965,16 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
   for (const p of list(at('.cursor', 'rules'), n => /\.mdc$/i.test(n))) add(p, 'cursor-rule', { client: 'cursor' });
 
   const vars = { CLAUDE_PROJECT_DIR: project };
-  for (const h of hookEntries(readJson(at('.claude', 'settings.json')), vars, 'project')) hooks.push({ ...h, group: null });
+  // Claude Code runs every hook (project, global, plugin) with the project as its working folder.
+  for (const h of hookEntries(readJson(at('.claude', 'settings.json')), vars, 'project', project)) hooks.push({ ...h, group: null });
   for (const p of list(at('.claude', 'hooks'), n => /\.(js|mjs|cjs|ps1|sh|py|cmd)$/i.test(n))) add(p, 'hook', { client: 'claude', load: 'hook' });
 
   const ruleText = isFile(at('.claude', 'rules', 'memory-first-workflow.md'))
     ? fs.readFileSync(at('.claude', 'rules', 'memory-first-workflow.md'), 'utf8') : null;
-  const indexPath = path.resolve(project, indexPathFrom(ruleText));
+  // The index must be a .md inside the project, so a repo's rule cannot pull an outside file into /api/file.
+  let indexPath = path.resolve(project, indexPathFrom(ruleText));
+  const indexRel = path.relative(project, indexPath);
+  if (indexRel.startsWith('..') || path.isAbsolute(indexRel) || !md(indexPath)) indexPath = path.resolve(project, indexPathFrom(null));
   add(indexPath, 'index');
   for (const p of walk(at('.cursor', 'memory'), md)) add(p, 'memory');
   for (const p of walk(at('.cursor', 'playbooks'), md)) add(p, 'playbook');
@@ -969,7 +994,7 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
     }
   }
   for (const p of skillsIn(path.join(claudeHome, 'skills'))) add(p, 'skill', { ...gc, client: 'claude', load: 'on-demand', skill: path.basename(path.dirname(p)) });
-  for (const h of hookEntries(readJson(path.join(claudeHome, 'settings.json')), {}, 'global')) hooks.push({ ...h, group: gc.group });
+  for (const h of hookEntries(readJson(path.join(claudeHome, 'settings.json')), {}, 'global', project)) hooks.push({ ...h, group: gc.group });
 
   // Global Codex
   const gx = { group: 'outside:codex-global', origin: 'global' };
@@ -983,7 +1008,7 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
     for (const p of list(path.join(pl.dir, 'agents'), md)) add(p, 'agent', { ...g, client: 'claude', load: 'on-demand' });
     const pv = { CLAUDE_PLUGIN_ROOT: pl.dir };
     for (const f of [path.join(pl.dir, 'hooks', 'hooks.json'), path.join(pl.dir, '.claude-plugin', 'plugin.json')]) {
-      for (const h of hookEntries(readJson(f), pv, pl.name)) hooks.push({ ...h, group: g.group, originLabel: pl.name });
+      for (const h of hookEntries(readJson(f), pv, pl.name, project)) hooks.push({ ...h, group: g.group, originLabel: pl.name });
     }
   }
 
@@ -992,7 +1017,8 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
     if (!h.script) continue;
     const extra = h.group ? { group: h.group, origin: h.group.startsWith('outside:plugin:') ? 'plugin' : 'global', originLabel: h.originLabel ?? null } : {};
     add(h.script, 'hook', { ...extra, client: 'claude', load: 'hook' });
-    h.nodeId = normPath(h.script);
+    // A script that is not on disk has no node; leave the hook unmatched rather than point at nothing.
+    if (files.has(normPath(h.script))) h.nodeId = normPath(h.script);
   }
 
   return { files: [...files.values()], hooks, indexId: normPath(indexPath) };
@@ -1121,7 +1147,7 @@ export function buildGraph(ctx) {
 - [ ] **Step 6: Run the tests**
 
 Run: `node --test`
-Expected: `tests 61`, `pass 61`, `fail 0`.
+Expected: `tests 62`, `pass 62`, `fail 0`.
 
 - [ ] **Step 7: Commit** `feat: build the config graph from project, global and plugin files`
 
@@ -1143,6 +1169,7 @@ Mapping (for review): `startup`, `read`, `write` → the node at that path, obse
 ```js
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph } from '../src/graph/build.js';
 import { applyUsage } from '../src/graph/usage.js';
@@ -1188,6 +1215,15 @@ test('usage maps touches to nodes with strength', () => {
   assert.deepEqual(overlay.map(o => [o.id, o.how, o.strength]).sort(),
     [[id('AGENTS.md'), 'startup', 'observed'], [normPath(path.join(f.codexHome, 'AGENTS.md')), 'startup', 'observed']].sort());
   assert.equal(applyUsage(g, [s1], null).overlay, null);
+});
+
+test('a hook whose script is missing does not break usage', () => {
+  const h = fakeConfig();
+  fs.writeFileSync(path.join(h.project, '.claude', 'settings.json'), JSON.stringify({ hooks: { Stop: [{ hooks: [
+    { type: 'command', command: 'node .claude/hooks/missing.js' }] }] } }));
+  const hg = buildGraph({ ...h, showDocs: false });
+  const s = session('s', 'claude', [{ how: 'hook', target: null, event: 'Stop', count: 1 }]);
+  assert.doesNotThrow(() => applyUsage(hg, [s], 'claude/s'));
 });
 ```
 
@@ -1288,7 +1324,7 @@ export function applyUsage(graph, sessions, pick) {
 - [ ] **Step 4: Run the tests**
 
 Run: `node --test`
-Expected: `tests 62`, `pass 62`, `fail 0`.
+Expected: `tests 64`, `pass 64`, `fail 0`.
 
 - [ ] **Step 5: Commit** `feat: map session touches to graph usage and overlay`
 
@@ -1608,7 +1644,7 @@ Replace with:
 - [ ] **Step 7: Run the tests**
 
 Run: `node --test`
-Expected: `tests 64`, `pass 64`, `fail 0`.
+Expected: `tests 66`, `pass 66`, `fail 0`.
 
 - [ ] **Step 8: Smoke the endpoint on the real project**
 
@@ -1825,7 +1861,7 @@ export const LAYOUTS = { layers: layoutLayers, clusters: layoutClusters };
 - [ ] **Step 4: Run the tests**
 
 Run: `node --test`
-Expected: `tests 69`, `pass 69`, `fail 0`.
+Expected: `tests 71`, `pass 71`, `fail 0`.
 
 - [ ] **Step 5: Commit** `feat: Layers and Clusters graph layout`
 
@@ -1981,7 +2017,7 @@ function edgePath(a, b, route) {
 
 function nodeShape(n, shape) {
   const r = RADIUS[n.type] || 5;
-  const attrs = { class: `shape${n.missing ? ' missing' : ''}`, style: n.missing ? null : `fill:${fillOf(n.type)}` };
+  const attrs = { class: `shape${n.missing ? ' missing' : ''}${n.origin ? ` origin-${n.origin}` : ''}`, style: n.missing ? null : `fill:${fillOf(n.type)}` };
   if (shape === 'square') return svg('rect', { ...attrs, x: -r, y: -r, width: 2 * r, height: 2 * r });
   if (shape === 'diamond') return svg('rect', { ...attrs, x: -r * 0.8, y: -r * 0.8, width: r * 1.6, height: r * 1.6, transform: 'rotate(45)' });
   return svg('circle', { ...attrs, r });
@@ -2122,6 +2158,7 @@ export async function renderGraph(main, q) {
       panel.replaceChildren(h('h2', {}, 'Legend'),
         h('ul', { class: 'list' }, TYPES.map(t => h('li', {}, h('span', {}, h('i', { class: 'swatch', style: `background:${fillOf(t)}` }), t)))),
         h('p', { class: 'note' }, 'Solid line: a client loads the file. Dotted line: one file names another. Thick: seen in the logs. Dashed accent: named in a command.'),
+        h('p', { class: 'note' }, 'File border: none for project files, dashed for universal (edit in the shared repo), dotted for generated, thick for framework (edit in the package).'),
         h('p', { class: 'note' }, 'Click a box to open it. Click a file to see its links.'));
       return;
     }
@@ -2256,6 +2293,10 @@ svg.graph.overlay .edge.observed { stroke: var(--e-hot); }
 svg.graph .edge.named { stroke: var(--e-hot); stroke-dasharray: 5 3; }
 svg.graph .node { cursor: pointer; }
 svg.graph .node .shape { stroke: var(--n-stroke); stroke-width: 1.5; }
+/* Origin border: files not owned by this project. Project, global and plugin keep the theme stroke. */
+svg.graph .node .shape.origin-universal { stroke: var(--text); stroke-dasharray: 3 2; }
+svg.graph .node .shape.origin-generated { stroke: var(--text); stroke-dasharray: 1 2; }
+svg.graph .node .shape.origin-framework { stroke: var(--text); stroke-width: 3; }
 svg.graph .node .shape.missing { fill: none; stroke: var(--muted); stroke-dasharray: 2 2; }
 svg.graph .node.sel .shape { stroke: var(--e-hot); stroke-width: 2.5; }
 svg.graph .node.sel text { fill: var(--text); font-weight: 600; }
@@ -2305,7 +2346,7 @@ Replace with:
 - [ ] **Step 8: Run the tests**
 
 Run: `node --test`
-Expected: `tests 69`, `pass 69`, `fail 0`. Then run `node --check public/graph.js`, `node --check public/app.js` and `node --check public/dom.js`. Expected: no output from any of them.
+Expected: `tests 71`, `pass 71`, `fail 0`. Then run `node --check public/graph.js`, `node --check public/app.js` and `node --check public/dom.js`. Expected: no output from any of them.
 
 - [ ] **Step 9: Check the screen in a browser**
 

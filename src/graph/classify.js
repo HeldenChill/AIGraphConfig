@@ -1,3 +1,4 @@
+import os from 'node:os';
 import path from 'node:path';
 
 // Node id and path compare form: absolute, forward slashes, lower case, no trailing slash.
@@ -56,23 +57,25 @@ export function labelOf(file) {
 
 const SCRIPT = /("[^"]+\.(?:js|mjs|cjs|ps1|sh|py|cmd)"|[^\s"]+\.(?:js|mjs|cjs|ps1|sh|py|cmd))(?=\s|$)/i;
 
-// The script file a hook command runs, with ${VAR} and $VAR expanded from vars; null when none.
-export function scriptOf(command, vars = {}) {
+// The script file a hook command runs, with ${VAR} and $VAR expanded from vars, a leading ~ expanded
+// to the home folder and a relative path resolved against base (the hook's working folder); null when none.
+export function scriptOf(command, vars = {}, base = process.cwd()) {
   const m = command.match(SCRIPT);
   if (!m) return null;
   let p = m[1].replace(/^"|"$/g, '');
   p = p.replace(/\$\{(\w+)\}|\$(\w+)/g, (all, a, b) => vars[a || b] ?? all);
-  return /\$/.test(p) ? null : path.resolve(p);
+  p = p.replace(/^~(?=[\\/])/, os.homedir());
+  return /\$/.test(p) ? null : path.resolve(base, p);
 }
 
 // Hook entries of a settings.json, hooks.json or plugin.json object.
-export function hookEntries(json, vars, source) {
+export function hookEntries(json, vars, source, base) {
   const out = [];
   for (const [event, groups] of Object.entries(json?.hooks || {})) {
     if (!Array.isArray(groups)) continue;
     for (const g of groups) for (const h of g.hooks || []) {
       if (typeof h.command !== 'string') continue;
-      out.push({ event, command: h.command, statusMessage: h.statusMessage ?? null, script: scriptOf(h.command, vars), source });
+      out.push({ event, command: h.command, statusMessage: h.statusMessage ?? null, script: scriptOf(h.command, vars, base), source });
     }
   }
   return out;

@@ -1,16 +1,24 @@
 # Memory: AIConfigGraph Project Context
 
 **ID:** `mem-project-context`
-**Status:** 2026-10-19 — **v1 token report built, verified and committed** (`node --test` 48/48; hand-sum match on PvM `1045f30c`: 78 calls, fresh 156, cache write 210,872, cache read 13,489,241, output 57,786). **Phase 2 config graph: spec approved, verified plan written, not executed** — see [`mem-config-graph.md`](mem-config-graph.md). Run: `node src/cli.js --project <path>`.
+**Status:** 2026-10-19 — **Phase 2 config graph built (Gemini), reviewed and fixed (Claude)**: `node --test` 71/71; 1 Critical + 3 Important review findings fixed in code and plan, 8 Minor open — see [`mem-config-graph.md`](mem-config-graph.md). PetVsMonster verified: rules 26, hubs 15, plugins 3; session `1045f30c`: skill 1, startup files 28. Run: `npm start` or `node src/cli.js --project <path>` (port 4317, or `--port <n>`); restart after `src/` changes.
 **Spec:** [`.cursor/plans/design/2026-10-18-ai-config-graph.md`](../plans/design/2026-10-18-ai-config-graph.md)
-**Plan:** [`.cursor/plans/implement/2026-10-18-ai-config-graph-v1.md`](../plans/implement/2026-10-18-ai-config-graph-v1.md) — its "Findings that refine the spec" table corrects where setup pieces live in the log.
+**Plan:** [`.cursor/plans/implement/2026-10-18-config-graph.md`](../plans/implement/2026-10-18-config-graph.md)
 
 ## Resume here
 
 1. Owner confirms the four themes in a browser (`/theme-check.html`): plan Task 7 Step 11 not yet confirmed.
-2. Phase 2 config graph: owner reviews the plan, Gemini executes, Claude reviews — [`mem-config-graph.md`](mem-config-graph.md) "Next".
-3. Uncommitted from the 2026-10-18 session: phase 2 spec and plan, `.claude/package.json`, memory edits. Commit on owner's go-ahead.
+2. Phase 2 config graph: executed by Gemini, reviewed and fixed; owner decides on the 8 Minor findings in [`mem-config-graph.md`](mem-config-graph.md).
+3. Commit Phase 2 (spec, plan, code, tests, memory) on owner's go-ahead.
 4. Master: `7addec6` (`.claude/package.json` Universal) is merged into `main` and pushed by the owner; run `sync.ps1 pull` in each project. Branch `docs/hook-troubleshooting` (`08ec8ca`, hook troubleshooting in `mem-shared-ai-config.md`) is local, not pushed.
+
+## Phase 2 verification (2026-10-19)
+
+- `node --test` → 69 pass, 0 fail (Task 6 Step 4, Task 7 Step 8). After the review fixes: 71 pass.
+- Independent file count vs graph API on PetVsMonster: rules 26, hubs 15, plugins 3 (exact match).
+- Session `1045f30c` overlay verification: hand count (`skill 1`, `instructions files 28`) = graph overlay (`overlay skill 1`, `startup files 28`) (exact match).
+- Real project endpoint check: `GET /api/graph` returned 200 and 1,045,545 bytes JSON for PetVsMonster.
+- Clean syntax checks on frontend modules: `node --check public/graph.js`, `node --check public/app.js`, `node --check public/dom.js` all pass with 0 errors.
 
 ## v1 verification (2026-10-18)
 

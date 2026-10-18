@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph } from '../src/graph/build.js';
 import { applyUsage } from '../src/graph/usage.js';
@@ -45,4 +46,13 @@ test('usage maps touches to nodes with strength', () => {
   assert.deepEqual(overlay.map(o => [o.id, o.how, o.strength]).sort(),
     [[id('AGENTS.md'), 'startup', 'observed'], [normPath(path.join(f.codexHome, 'AGENTS.md')), 'startup', 'observed']].sort());
   assert.equal(applyUsage(g, [s1], null).overlay, null);
+});
+
+test('a hook whose script is missing does not break usage', () => {
+  const h = fakeConfig();
+  fs.writeFileSync(path.join(h.project, '.claude', 'settings.json'), JSON.stringify({ hooks: { Stop: [{ hooks: [
+    { type: 'command', command: 'node .claude/hooks/missing.js' }] }] } }));
+  const hg = buildGraph({ ...h, showDocs: false });
+  const s = session('s', 'claude', [{ how: 'hook', target: null, event: 'Stop', count: 1 }]);
+  assert.doesNotThrow(() => applyUsage(hg, [s], 'claude/s'));
 });

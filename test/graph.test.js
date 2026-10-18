@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph } from '../src/graph/build.js';
 import { normPath } from '../src/graph/classify.js';
@@ -91,6 +92,20 @@ test('hook entries from project, global and plugin settings', () => {
     [['SessionStart', 'g.js'], ['SessionStart', 'run.cmd'], ['UserPromptSubmit', 'inject.js']]);
   assert.equal(g.hooks.find(h => h.nodeId.endsWith('g.js')).statusMessage, 'Loading g');
   assert.equal(g.nodes.find(n => n.id.endsWith('/run.cmd')).group, 'outside:plugin:pl');
+});
+
+test('relative and missing hook scripts, outside index path', () => {
+  const h = fakeConfig();
+  const put = (file, text) => fs.writeFileSync(path.join(h.project, file), text);
+  put('.claude/settings.json', JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [
+    { type: 'command', command: 'node .claude/hooks/inject.js' },
+    { type: 'command', command: 'node .claude/hooks/missing.js' }] }] } }));
+  fs.writeFileSync(path.join(h.dir, 'secret.md'), '# outside\n');
+  put('.claude/rules/memory-first-workflow.md', 'MEMORY_MASTER_INDEX  = ../secret.md\n');
+  const hg = buildGraph({ ...h, showDocs: false });
+  const inject = normPath(path.join(h.project, '.claude', 'hooks', 'inject.js'));
+  assert.deepEqual(hg.hooks.filter(x => x.event === 'UserPromptSubmit').map(x => x.nodeId), [inject], 'relative resolves in project; missing has no node');
+  assert.ok(!hg.nodes.some(n => n.id.endsWith('/missing.js') || n.id.endsWith('/secret.md')));
 });
 
 test('resolver: git bash, relative, suffix and stem forms', () => {

@@ -2,7 +2,7 @@
 
 **ID:** `mem-config-graph`
 **Parent:** `mem-project-context`
-**Status:** 2026-10-19 — spec approved, Gemini-ready plan written and verified. **Execution started 2026-10-19 00:05** (files appearing step by step in the working tree; Task 2 at 00:06). Review it with the PvM playbook sections 5 and 11.5.
+**Status:** 2026-10-19 — **built by Gemini from the plan, reviewed, 4 review findings fixed in code and in the plan.** `node --test` 71/71. Plan text applied to a `HEAD` export reproduces `src/` and `test/` byte for byte (39 operations, 71/71). **Uncommitted.** 8 Minor findings open (below).
 **Spec:** [`.cursor/plans/design/2026-10-18-config-graph.md`](../plans/design/2026-10-18-config-graph.md)
 **Plan:** [`.cursor/plans/implement/2026-10-18-config-graph.md`](../plans/implement/2026-10-18-config-graph.md) (8 tasks, 2,367 lines, complete code)
 
@@ -56,9 +56,37 @@ Claude's calls (owner kept or did not object): hubs start closed with "open all"
 4. `apply-plan.cjs` parsed the plan text and applied every Create / Replace / Append / Find-Replace to a clean copy: byte-identical to scratch, 69/69; per-task cumulative counts 49, 52, 61, 62, 64, 69 checked by applying the plan cut after each task. Both scripts are saved as reusable tools: `G:\Unity\Project\PetVsMonster\.cursor\playbooks\tools\splice-plan-code.cjs` and `apply-plan-text.cjs` (re-verified on a `HEAD` export, 39 operations, 69/69).
 5. Review aid: the verified code is the reference. Regenerate it by applying the plan to a `HEAD` export, then `diff -r` against the executor's tree.
 
-Full lessons: PvM playbook `.cursor/playbooks/external-executor-plan-review.md` section 15.
+Full lessons: PvM playbook `.cursor/playbooks/external-executor-plan-review.md` section 15 (planning) and section 16 (review and fixes).
+
+## Review and fixes (2026-10-19)
+
+Gemini copied every plan block exactly (reviewer compared all 17 Create/Replace blocks and every Find/Replace). So every finding was a defect **in the plan's code**, which the scratch-build proof could not catch: the fake config in `test/helpers.js` only used absolute or `$VAR` hook paths and an in-project index.
+
+| Finding | Fix (code and plan both) |
+|---|---|
+| Critical: hook script named in settings but missing on disk got `h.nodeId` anyway; a session that fired its event made `usage.js` read `byId.get(id).type` of nothing, so `/api/graph` returned 500 | `collect.js` sets `nodeId` only when `files.has(...)`; test in `usage.test.js` |
+| Important: `scriptOf` resolved relative paths against the server's own folder and did not expand `~` | `scriptOf(command, vars, base)` expands a leading `~` to `os.homedir()` and resolves against `base`; `hookEntries` passes `project` for project, global and plugin hooks (Claude Code runs every hook with the project as its working folder) |
+| Important: `MEMORY_MASTER_INDEX` value could be `../..` or absolute with any extension, so a cloned repo's rule could put any file into the node set that `/api/file` serves | `collect.js` accepts it only as a `.md` inside the project, else the default path |
+| Important (plan dropped a spec line): spec 5.2 "origin shows as node border style" | `graph.js` adds `origin-<x>` class to `.shape`; `app.css` universal dashed `3 2`, generated dotted `1 2`, framework stroke-width 3, all `stroke: var(--text)` (themes A, B, D set `--n-stroke: none`); Legend note. Checked in all four themes at 3x zoom on PvM |
+
+Test counts per task are now 49, 52, 62, 64, 66, 71, 71. The new `applyUsage` check lives in `usage.test.js` (Task 4), not `graph.test.js` (Task 3), because `usage.js` does not exist yet in Task 3.
+
+**Open Minor findings** (not fixed):
+
+1. Graph cache key covers node files only; editing hook JSON (`settings.json`, `hooks.json`, `plugin.json`) or `manifest.json` leaves hook matching and origins stale. Add their stamps to the key in `build.js`.
+2. Session picker lists only in-range sessions; a picked out-of-range session lights the map but shows "No session".
+3. Overlay adds its groups to `state.open` for good; clearing the session leaves them open.
+4. Reader `f.refs` is a plain object; `constructor`/`toString` become fake links. Use `Object.hasOwn`.
+5. `visibleGraph` counts merged edges, ignoring log edges' own `count`; the `xN` tooltip understates.
+6. Theme D: config load dash `1 3` and mention `2 3` look alike.
+7. `touches.js`: a `hook_success` without `toolUseID` puts `undefined` into `ran` and hides other id-less context lines.
+8. Resolver suffix match scans every node per token; fine at 680 nodes.
+
+## Running it
+
+`npm start` (= `node src/cli.js`, port 4317, opens the browser), Graph at `/#/graph`. A server started before a code change keeps the old routes: `/api/graph` 404 on 2026-10-19 was a v1 server left running from the night before. Restart after any `src/` change.
 
 ## Next
 
-1. Execution in progress; then Claude reviews (playbook sections 5, 11.5): diff against the plan applied to `HEAD`, own `node --test` (expect 69), Task 7 browser table, Task 8 numbers.
-2. Commit spec, plan, `.claude/package.json` and memory on owner's go-ahead (nothing from the 2026-10-18 session is committed in AIConfigGraph).
+1. Owner decides on the 8 Minor findings.
+2. Commit spec, plan, code, tests, `.claude/package.json` and memory on owner's go-ahead (nothing from 2026-10-18 or 2026-10-19 is committed).

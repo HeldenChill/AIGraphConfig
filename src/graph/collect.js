@@ -81,12 +81,16 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
   for (const p of list(at('.cursor', 'rules'), n => /\.mdc$/i.test(n))) add(p, 'cursor-rule', { client: 'cursor' });
 
   const vars = { CLAUDE_PROJECT_DIR: project };
-  for (const h of hookEntries(readJson(at('.claude', 'settings.json')), vars, 'project')) hooks.push({ ...h, group: null });
+  // Claude Code runs every hook (project, global, plugin) with the project as its working folder.
+  for (const h of hookEntries(readJson(at('.claude', 'settings.json')), vars, 'project', project)) hooks.push({ ...h, group: null });
   for (const p of list(at('.claude', 'hooks'), n => /\.(js|mjs|cjs|ps1|sh|py|cmd)$/i.test(n))) add(p, 'hook', { client: 'claude', load: 'hook' });
 
   const ruleText = isFile(at('.claude', 'rules', 'memory-first-workflow.md'))
     ? fs.readFileSync(at('.claude', 'rules', 'memory-first-workflow.md'), 'utf8') : null;
-  const indexPath = path.resolve(project, indexPathFrom(ruleText));
+  // The index must be a .md inside the project, so a repo's rule cannot pull an outside file into /api/file.
+  let indexPath = path.resolve(project, indexPathFrom(ruleText));
+  const indexRel = path.relative(project, indexPath);
+  if (indexRel.startsWith('..') || path.isAbsolute(indexRel) || !md(indexPath)) indexPath = path.resolve(project, indexPathFrom(null));
   add(indexPath, 'index');
   for (const p of walk(at('.cursor', 'memory'), md)) add(p, 'memory');
   for (const p of walk(at('.cursor', 'playbooks'), md)) add(p, 'playbook');
@@ -106,7 +110,7 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
     }
   }
   for (const p of skillsIn(path.join(claudeHome, 'skills'))) add(p, 'skill', { ...gc, client: 'claude', load: 'on-demand', skill: path.basename(path.dirname(p)) });
-  for (const h of hookEntries(readJson(path.join(claudeHome, 'settings.json')), {}, 'global')) hooks.push({ ...h, group: gc.group });
+  for (const h of hookEntries(readJson(path.join(claudeHome, 'settings.json')), {}, 'global', project)) hooks.push({ ...h, group: gc.group });
 
   // Global Codex
   const gx = { group: 'outside:codex-global', origin: 'global' };
@@ -120,7 +124,7 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
     for (const p of list(path.join(pl.dir, 'agents'), md)) add(p, 'agent', { ...g, client: 'claude', load: 'on-demand' });
     const pv = { CLAUDE_PLUGIN_ROOT: pl.dir };
     for (const f of [path.join(pl.dir, 'hooks', 'hooks.json'), path.join(pl.dir, '.claude-plugin', 'plugin.json')]) {
-      for (const h of hookEntries(readJson(f), pv, pl.name)) hooks.push({ ...h, group: g.group, originLabel: pl.name });
+      for (const h of hookEntries(readJson(f), pv, pl.name, project)) hooks.push({ ...h, group: g.group, originLabel: pl.name });
     }
   }
 
@@ -129,7 +133,8 @@ export function collectFiles({ project, claudeHome, codexHome, sharedDir, showDo
     if (!h.script) continue;
     const extra = h.group ? { group: h.group, origin: h.group.startsWith('outside:plugin:') ? 'plugin' : 'global', originLabel: h.originLabel ?? null } : {};
     add(h.script, 'hook', { ...extra, client: 'claude', load: 'hook' });
-    h.nodeId = normPath(h.script);
+    // A script that is not on disk has no node; leave the hook unmatched rather than point at nothing.
+    if (files.has(normPath(h.script))) h.nodeId = normPath(h.script);
   }
 
   return { files: [...files.values()], hooks, indexId: normPath(indexPath) };

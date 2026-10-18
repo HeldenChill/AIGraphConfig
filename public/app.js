@@ -1,5 +1,7 @@
 import { compact, exact, money } from './format.js';
 import { stackedBar, promptTimeline } from './charts.js';
+import { h, api } from './dom.js';
+import { renderGraph } from './graph.js';
 
 const COST_LABEL = 'API-equivalent cost';
 const TOKEN_COLS = [
@@ -11,21 +13,6 @@ const TOKEN_COLS = [
 
 // --- helpers -------------------------------------------------------------
 
-function h(tag, attrs = {}, ...children) {
-  const e = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
-    else if (v !== undefined && v !== null && v !== false) e.setAttribute(k, v);
-  }
-  e.append(...children.flat().filter(c => c !== null && c !== undefined).map(c => (c instanceof Node ? c : String(c))));
-  return e;
-}
-
-async function api(path, options) {
-  const r = await fetch(path, options);
-  if (!r.ok) throw new Error(`${path}: ${r.status}`);
-  return r.json();
-}
 
 const write = t => t.cacheWrite5m + t.cacheWrite1h;
 const tokenTotal = t => t.fresh + write(t) + t.cacheRead + t.output;
@@ -53,6 +40,7 @@ async function route() {
   try {
     const { parts, query } = parseHash(); // throws on a malformed hash such as %E0
     if (parts[0] === 'settings') await renderSettings(main);
+    else if (parts[0] === 'graph') await renderGraph(main, query);
     else if (parts[0] === 's' && parts[3] === 'p') await renderPrompt(main, parts[1], parts[2], Number(parts[4]));
     else if (parts[0] === 's') await renderSession(main, parts[1], parts[2]);
     else await renderSessions(main, query);
@@ -173,6 +161,7 @@ async function renderSession(main, client, id) {
   main.replaceChildren(
     h('p', { class: 'meta' }, h('a', { href: '#/' }, 'Sessions'), ` / ${s.client} · ${s.model || '–'} · ${day(s.start)} to ${time(s.end)}`),
     h('h1', {}, s.title || s.id),
+    h('p', { class: 'meta' }, h('a', { href: `#/graph?session=${encodeURIComponent(`${client}/${id}`)}` }, 'Show on map')),
     unpricedBanner(s.unpriced),
     h('div', { class: 'big', title: exact(tokenTotal(t)) }, compact(tokenTotal(t)),
       h('small', {}, `tokens · ${hitRate}% cache read · ${COST_LABEL} ${money(s.cost)}`)),
@@ -224,6 +213,7 @@ async function renderPrompt(main, client, id, index) {
 // --- settings ------------------------------------------------------------
 
 const THEMES = [['A', 'Midnight Craft'], ['B', 'Paper Workspace'], ['C', 'Blueprint'], ['D', 'Signal Terminal']];
+const LAYOUTS = [['layers', 'Layers, left to right'], ['clusters', 'Clusters by hub']];
 
 async function renderSettings(main) {
   const s = await api('/api/settings');
@@ -249,6 +239,10 @@ async function renderSettings(main) {
           save({ theme: key });
         } }), ` ${key}. ${name}`))),
       h('p', { class: 'meta' }, h('a', { href: '/theme-check.html' }, 'Open the theme check page'))),
+    h('div', { class: 'panel' }, h('h2', {}, 'Graph'),
+      h('div', { class: 'filters' }, LAYOUTS.map(([key, name]) => h('label', { class: 'inline' },
+        h('input', { type: 'radio', name: 'layout', checked: key === s.layout, onchange: () => save({ layout: key }) }), ` ${name}`))),
+      h('label', { class: 'inline' }, h('input', { type: 'checkbox', checked: s.showDocs, onchange: e => save({ showDocs: e.target.checked }) }), ' Show docs/ files')),
     h('div', { class: 'panel' }, h('h2', {}, 'Data'),
       h('p', { class: 'meta' }, `Price table: ${s.pricesFile || '–'}`),
       h('p', { class: 'meta' }, `Last scan: ${day(s.scannedAt)}`)));
