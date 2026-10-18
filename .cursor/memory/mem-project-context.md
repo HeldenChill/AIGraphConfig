@@ -1,14 +1,21 @@
 # Memory: AIConfigGraph Project Context
 
 **ID:** `mem-project-context`
-**Status:** 2026-10-18 — brainstorm finished, **spec v1 written and awaiting owner approval**. Nothing built. Workspace files are **not committed** (repo has no commits yet).
+**Status:** 2026-10-18 — **v1 token report built** (Gemini, from plan) and verified. `node --test` 48/48 pass. Hand-sum match on PvM `1045f30c`: 78 calls, fresh 156, cache write 210,872, cache read 13,489,241, output 57,786. Not committed yet. Run: `node src/cli.js --project <path>`.
 **Spec:** [`.cursor/plans/design/2026-10-18-ai-config-graph.md`](../plans/design/2026-10-18-ai-config-graph.md)
+**Plan:** [`.cursor/plans/implement/2026-10-18-ai-config-graph-v1.md`](../plans/implement/2026-10-18-ai-config-graph-v1.md) — its "Findings that refine the spec" table corrects where setup pieces live in the log.
 
 ## Resume here
 
-1. Ask the owner to approve the spec (or apply their changes). Do not build before approval.
-2. On approval: `superpowers:writing-plans` → plan in `.cursor/plans/implement/2026-10-18-ai-config-graph-v1.md`. Refuse its subagent-driven handoff (`skip-subagent-driven-development.md`); execute inline.
-3. Owner has not asked for a commit yet. Offer one after approval.
+1. Owner review of v1 and commit on owner's go-ahead (`docs: record v1 verification`).
+2. Phase 2 config graph: `superpowers:brainstorming` → spec, then a Gemini-ready plan (complete verified code embedded, as v1).
+
+## v1 verification (2026-10-18)
+
+- PvM `1045f30c`: tool = hand sum — 78 calls, fresh 156, cache write 210,872, cache read 13,489,241, output 57,786; API-equivalent cost $5.54. All 15 PvM + 9 Horror1Game Claude sessions match a hand sum of output tokens (incl. subagent files).
+- `prices.json`: 5 Anthropic rows, checked against platform.claude.com pricing. OpenAI page blocks fetches (Cloudflare 403) → Codex models show "no price". Haiku 5.5 row = the ≤100k-token-prompt tier (over 100k is 5×, underpriced).
+- Review fixes: per-`requestId` usage keeps the largest value (subagent transcripts write partial streaming usage on early lines); parsed cache kept in memory and written only when dirty; an unreadable log file is skipped, not a 500; session detail always rescans; 413 actually returned; CLI exits cleanly on bad or busy port; malformed hash shows an error banner. `PARSER_VERSION` = 2.
+- Open, not fixed: date filter compares UTC dates; a Codex prompt starting with `<` is treated as injected; 4 of 43 Codex rollouts total about 2% above the rollout's own `total_token_usage` (maybe compaction, unexplained).
 
 ## What the tool is
 
@@ -49,6 +56,8 @@ Sample numbers (the brainstorm session `1045f30c`, PvM, 36 calls): 4.6M cache re
 
 - **Dedupe Claude calls by `requestId`** — one call writes several `assistant` lines with repeated `usage` (67 lines for 36 calls).
 - **Codex `input_tokens` includes cached; Claude's excludes it.** Normalize fresh = input − cached for Codex.
+- Log facts found while writing the v1 plan (2026-10-18): typed Claude prompts carry `origin.kind: "human"`; CLAUDE.md/rules/MEMORY.md arrive in one `attachment` `instructions` with `files[{path,type,content}]`, not in `api-request-shape` `shape.system`; Codex has a per-call `token_usage_record` (`response_id`, `turn_id`, `usage`) in every rollout; logs hold both `claude-opus-5` and `claude-opus-5-5`, so price lookup must not prefix-match. Full table: the plan's "Findings that refine the spec".
+- The plan embeds complete, pre-verified code (41 tests pass; parser matched a hand sum on `1045f30c`) so a non-Claude executor (Gemini) can copy it verbatim.
 - taste-skill v2 (`design-taste-frontend`) says "Not for dashboards or app screens"; do not run its `draw.mjs` landing-page workflow for tool screens. Use its bans + minimalist/brutalist skills + `vendor/awesome-design-md/design-md/linear.app`.
 - The shared memory hook reads `.cursor/memory/mem-arch-assemblies-canonical.md` (fixed path) — that is why this workspace's index has a Unity-sounding name.
 - `memory-first-workflow.md` and `memory-write-rules.md` were copied from PvM because the shared hook points at them and the master does not deliver them. Candidate to promote to Universal in `claude-unity-shared`.
