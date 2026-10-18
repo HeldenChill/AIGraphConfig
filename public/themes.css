@@ -1,0 +1,54 @@
+/* Token values come from the owner-approved mockup visual-style.html (2026-10-18).
+   Every other stylesheet uses only these variables. System fonts only: the tool never loads from the network. */
+
+:root[data-theme="A"] { /* Midnight Craft: near-black, one lavender accent, surfaces by tone step */
+  --bg: #0b0c0d; --surface: #141516; --surface-2: #1c1d1f; --border: #23252a;
+  --text: #f7f8f8; --text-2: #d0d6e0; --muted: #8a8f98; --accent: #828fff;
+  --good: #4cb782; --bad: #eb5757;
+  --s-fresh: #5e6ad2; --s-write: #828fff; --s-read: #3e4377; --s-output: #62666d;
+  --font-body: "SF Pro Display", -apple-system, "Segoe UI", sans-serif;
+  --font-head: var(--font-body);
+  --font-mono: Consolas, "JetBrains Mono", monospace;
+  --head-weight: 600; --head-tracking: -1.6px;
+  --radius: 8px; --rule-width: 0px; --label-case: none; --label-tracking: 0;
+  --scanlines: none;
+}
+
+:root[data-theme="B"] { /* Paper Workspace: warm off-white, serif headline, pastel tags */
+  --bg: #fbfbfa; --surface: #ffffff; --surface-2: #f4f4f2; --border: #eaeaea;
+  --text: #2f3437; --text-2: #2f3437; --muted: #787774; --accent: #1f6c9f;
+  --good: #2f7d4f; --bad: #9f2f2d;
+  --s-fresh: #9fc2db; --s-write: #e8cf8a; --s-read: #a9c9a4; --s-output: #e2b4b3;
+  --font-body: "Segoe UI", -apple-system, sans-serif;
+  --font-head: Georgia, "Newsreader", serif;
+  --font-mono: Consolas, "JetBrains Mono", monospace;
+  --head-weight: 400; --head-tracking: -1px;
+  --radius: 6px; --rule-width: 1px; --label-case: none; --label-tracking: 0;
+  --scanlines: none;
+}
+
+:root[data-theme="C"] { /* Blueprint: Swiss print, newsprint ground, heavy black type, hazard red */
+  --bg: #f4f4f0; --surface: #f4f4f0; --surface-2: #e8e8e2; --border: #111111;
+  --text: #111111; --text-2: #111111; --muted: #555555; --accent: #e61919;
+  --good: #111111; --bad: #e61919;
+  --s-fresh: #e61919; --s-write: #111111; --s-read: #555555; --s-output: #999999;
+  --font-body: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-head: "Arial Black", Arial, sans-serif;
+  --font-mono: Consolas, "JetBrains Mono", monospace;
+  --head-weight: 900; --head-tracking: -3px;
+  --radius: 0px; --rule-width: 2px; --label-case: uppercase; --label-tracking: .08em;
+  --scanlines: none;
+}
+
+:root[data-theme="D"] { /* Signal Terminal: dark CRT, monospace, one red, one green readout */
+  --bg: #0d0d0d; --surface: #141414; --surface-2: #1c1c1c; --border: #333333;
+  --text: #eaeaea; --text-2: #eaeaea; --muted: #9a9a9a; --accent: #ff2a2a;
+  --good: #4af626; --bad: #ff2a2a;
+  --s-fresh: #ff2a2a; --s-write: #eaeaea; --s-read: #9a9a9a; --s-output: #5a5a5a;
+  --font-body: Consolas, "JetBrains Mono", monospace;
+  --font-head: var(--font-body);
+  --font-mono: var(--font-body);
+  --head-weight: 700; --head-tracking: -1px;
+  --radius: 0px; --rule-width: 1px; --label-case: uppercase; --label-tracking: .1em;
+  --scanlines: repeating-linear-gradient(0deg, transparent 0 2px, rgba(255, 255, 255, .025) 2px 4px);
+}
