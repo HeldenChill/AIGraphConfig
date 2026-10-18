@@ -7,8 +7,9 @@
 
 ## Resume here
 
-1. Owner review of v1 and commit on owner's go-ahead (`docs: record v1 verification`).
-2. Phase 2 config graph: `superpowers:brainstorming` → spec, then a Gemini-ready plan (complete verified code embedded, as v1).
+1. Owner confirms the four themes in a browser (`/theme-check.html`): plan Task 7 Step 11 not yet confirmed.
+2. Owner review of v1 and commit on owner's go-ahead (`docs: record v1 verification`).
+3. Phase 2 config graph: `superpowers:brainstorming` → spec, then a Gemini-ready plan (complete verified code embedded, as v1).
 
 ## v1 verification (2026-10-18)
 
@@ -45,16 +46,16 @@ Node built-ins only, no dependencies, plain HTML/CSS/JS, hand-drawn SVG charts; 
 
 | Client | Log | Has |
 |---|---|---|
-| Claude Code | `~/.claude/projects/<slug>/<session>.jsonl` | per call `message.usage` + `requestId`; `promptId` on user lines; `attachment` `hook_additional_context` with hook name + text; `api-request-shape` with the full system prompt once per session; `ai-title` |
-| Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | `event_msg` `token_count` per turn (`last_token_usage`: input incl. cached, cached, output, reasoning) + `rate_limits` used percent |
+| Claude Code | `~/.claude/projects/<slug>/<session>.jsonl` (+ `<session>/subagents/*.jsonl` when present) | per call `message.usage` + `requestId`; typed prompts marked `origin.kind: "human"`; `attachment` `hook_additional_context` with hook name + text; `attachment` `instructions` (CLAUDE.md, rules, MEMORY.md as `files`), `skill_listing`, `mcp_instructions_delta`; `api-request-shape` with `shape.system` + `shape.tools`; `ai-title` |
+| Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | `token_usage_record` per API call (`response_id`, `turn_id`, `usage`: input incl. cached, cached, cache write, output, reasoning); `event_msg` `token_count` for `rate_limits` used percent |
 | Cursor | `AppData/Roaming/Cursor/User/workspaceStorage` (SQLite) | not inspected |
 | Gemini | `~/.gemini/` | not inspected |
 
-Sample numbers (the brainstorm session `1045f30c`, PvM, 36 calls): 4.6M cache read, 147k cache write, 72 fresh input, 24k output; first call wrote 61k tokens of setup to cache; 48 prompt-hook injections ≈ 36k chars.
+Sample numbers (the brainstorm session `1045f30c`, PvM, at 36 calls; the session later grew to 78 calls, see v1 verification): 4.6M cache read, 147k cache write, 72 fresh input, 24k output; first call wrote 61k tokens of setup to cache; 48 prompt-hook injections ≈ 36k chars.
 
 ## Traps
 
-- **Dedupe Claude calls by `requestId`** — one call writes several `assistant` lines with repeated `usage` (67 lines for 36 calls).
+- **Dedupe Claude calls by `requestId`** — one call writes several `assistant` lines with repeated `usage` (67 lines for 36 calls). In subagent transcripts the early lines carry partial streaming usage: keep the largest value per field, never the first line.
 - **Codex `input_tokens` includes cached; Claude's excludes it.** Normalize fresh = input − cached for Codex.
 - Log facts found while writing the v1 plan (2026-10-18): typed Claude prompts carry `origin.kind: "human"`; CLAUDE.md/rules/MEMORY.md arrive in one `attachment` `instructions` with `files[{path,type,content}]`, not in `api-request-shape` `shape.system`; Codex has a per-call `token_usage_record` (`response_id`, `turn_id`, `usage`) in every rollout; logs hold both `claude-opus-5` and `claude-opus-5-5`, so price lookup must not prefix-match. Full table: the plan's "Findings that refine the spec".
 - The plan embeds complete, pre-verified code (41 tests pass; parser matched a hand sum on `1045f30c`) so a non-Claude executor (Gemini) can copy it verbatim.
